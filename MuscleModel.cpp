@@ -240,7 +240,7 @@ double MuscleModel::d_force(double T_0, double lce, double vel, double A){
 
 }
 
-double MuscleModel::stepping_model(double delta_t, double spike)
+double MuscleModel::stepping_model(double delta_t, double spike, double lce, double vel)
 {
 	double A;
 	double dT;
@@ -252,7 +252,7 @@ double MuscleModel::stepping_model(double delta_t, double spike)
 	past_h_1 = current_h;
 
 	A = current_h * s(1.011);
-	dT = d_force(past_T, 1.0, 0.0, A);
+	dT = d_force(past_T, lce, vel, A);
 	T = past_T + dT * delta_t;
 	past_T = T;
 

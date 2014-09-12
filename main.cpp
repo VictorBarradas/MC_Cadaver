@@ -21,8 +21,8 @@
 #include "DCMotorCommand.h"	// Class for DC motor voltage control
 #include "EncoderData.h"	// Class for DC motor voltage control
 #include "Controller.h"	// Class for DC motor voltage control
-#include "MuscleModel.h"
 #include "FiniteStateMachine.h"
+#include "Experiment.h"
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
@@ -63,17 +63,19 @@ EncoderData gEncoderData = EncoderData(
 	);
 Controller gController = Controller(&gLoadCellData, &gDCMotorCommand);
 //KinematicPerturbation gKinematicPerturbation;
+Experiment gExperiment;
 
 UdpClient gUdpClient;
 UdpServer gUdpServer;
 
-FiniteStateMachine gFSM = FiniteStateMachine(&gDCMotorCommand);
+FiniteStateMachine gFSM;
 
 // Thread related globals
 const int NUM_THREADS = 2;
 pthread_t gThreads[NUM_THREADS];
 bool gRunning = false;
 
+bool bIsParadigm = false;
 bool bIsKinematic = false;
 bool bIsPerturbing = false;
 bool bIsRecording = false;
@@ -152,12 +154,23 @@ void keyboard(unsigned char key, int x, int y)
 	switch(key) {
 	case 27:
 		gRunning = false;
-		exit(0);
-		break;
+			exit(0);
+			break;
 
 	case 'G':	// "Motor 2 Down"
 	case 'g':
 		gFSM.ProceedState();
+		if(gFSM.state == 1) {
+			gDCMotorCommand.TurnAmplifiersOn();
+			//gController.enableWindUp();
+		}
+		else if(gFSM.state == 2) {
+			bIsParadigm = true;
+		}
+		else if(gFSM.state == 3) {
+			bIsParadigm = false;
+			gDCMotorCommand.TurnAmplifiersOff();
+		}
 		break;
 
 	case 'L':	// "Logging Generic"
@@ -173,6 +186,7 @@ void keyboard(unsigned char key, int x, int y)
 
 
 	case VK_SPACE:
+		gFSM.Abort();
 		gDCMotorCommand.TurnAmplifiersOff();
 		gController.bForceControlOn = false;
 		gController.bWindUp = false;
@@ -306,21 +320,7 @@ void terminateProgram()
 
 
 void* ControlLoop(void*){
-	MuscleModel muscle_1 = MuscleModel();
-	TimeData loopPerformanceTimer;
-	FILE *f;
-	double time_now;
-	double time_past = 0.0f;
-	double delta_t;
-	double T = 0;
-	double Px;
-	int firing_rate = 20;
-	double spike;
-	int i = 1;
-	int time = 0;
 	
-	srand(10);
-	f = fopen("forcerecord.txt", "w");
 	while (gRunning){
 		update();
 
@@ -383,40 +383,12 @@ void* ControlLoop(void*){
 
 		}
 
-		double random = rand()/32767.0;
-
-		time_now = loopPerformanceTimer.getCurrentTime();
-		delta_t = time_now - time_past;
-		time_past = time_now;
-
-		Px = 1 - exp(-firing_rate * delta_t);
-		if(random < Px) {
-			spike = 1.0;
-		} else {
-			spike = 0.0;
+		if(bIsParadigm) {
+			
+			gExperiment.paradigm();
+			
 		}
-
-		/*if(i > 1000) {
-			i = 1;
-		}
-		if(i % 10 == 0) {
-			spike = 1;
-		} else {
-			spike = 0;
-		}
-		i++;*/
-
-		T = muscle_1.stepping_model(delta_t, spike);
-		//T = muscle_1.stepping_model(1/1024.0, spike);
-		//gDCMotorCommand.SendVoltageOut(1, T/500.0);
-		//gDCMotorCommand.SendVoltageOut(3, T/500.0);
-
-		fprintf(f,"%f\t%f\t%f\r\n", time_now, T, spike);
-		//fprintf(f,"%d\t%f\t%d\n", time, T, spike);
-		time++;
-
 	}
-	fclose(f);
 	// Recall Display at next frame
 	// glutRedisplay();
 	return 0;

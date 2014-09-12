@@ -123,6 +123,7 @@
     <ClCompile Include="DataLogger.cpp" />
     <ClCompile Include="DCMotorCommand.cpp" />
     <ClCompile Include="EncoderData.cpp" />
+    <ClCompile Include="Experiment.cpp" />
     <ClCompile Include="FiniteStateMachine.cpp" />
     <ClCompile Include="LoadCellData.cpp" />
     <ClCompile Include="main.cpp" />
@@ -136,6 +137,7 @@
     <ClInclude Include="DataLogger.h" />
     <ClInclude Include="DCMotorCommand.h" />
     <ClInclude Include="EncoderData.h" />
+    <ClInclude Include="Experiment.h" />
     <ClInclude Include="FiniteStateMachine.h" />
     <ClInclude Include="LoadCellData.h" />
     <ClInclude Include="MuscleModel.h" />

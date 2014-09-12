@@ -22,7 +22,7 @@ class MuscleModel
 public:
 	MuscleModel(void);
 	~MuscleModel(void);
-	double stepping_model(double, double);
+	double stepping_model(double, double, double, double);
 	double T;	
 };
 
