@@ -1,9 +1,25 @@
 #include "MuscleModel.h"
 
 const int SAMPLING_RATE = 1024;
+typedef double (*muscle_model)(double, double, double, double);
+muscle_model algorithm;
 
 MuscleModel::MuscleModel(void)
 {
+}
+
+MuscleModel::MuscleModel(int model_type)
+{
+	switch(model_type)
+	{
+		case HILL_TYPE_MODEL:
+			algorithm = stepping_model;
+			
+		break;
+		default:
+			algorithm = stepping_model;
+		break;
+	}
 	past_T = 0;
 	past_spike_1 = 0;
 	past_spike_2 = 0;
@@ -67,7 +83,7 @@ int MuscleModel::sample(){
 	return 0;
 }
 
-double MuscleModel::s(double x){
+double s(double x){
 	double weighted;
 
 	if (x < 0.5){
@@ -88,7 +104,7 @@ double MuscleModel::s(double x){
 	return weighted;
 }
 
-double MuscleModel::active_state(double x_i0, double x_i1, double x_i2, double y_i1, double y_i2){
+double active_state(double x_i0, double x_i1, double x_i2, double y_i1, double y_i2){
 	const double b0 = 2299.0;
 	const double b1 = -2289.0;
 	const double b2 = 0.0;
@@ -221,7 +237,47 @@ double* MuscleModel::gen_waveform(double L1, double L2, double T){
 	return x;
 }
 
-double MuscleModel::d_force(double T_0, double lce, double vel, double A){
+double MuscleModel::get_past_h_1(void)
+{
+	return past_h_1;
+}
+
+double MuscleModel::get_past_h_2(void)
+{
+	return past_h_2;
+}
+
+double MuscleModel::get_past_spike_1(void)
+{
+	return past_spike_1;
+}
+
+double MuscleModel::get_past_spike_2(void)
+{
+	return past_spike_2;
+}
+
+void MuscleModel::set_past_h_1(double past_H_1)
+{
+	past_h_1 = past_H_1;
+}
+
+void MuscleModel::set_past_h_2(double past_H_2)
+{
+	past_h_2 = past_H_2;
+}
+
+void MuscleModel::set_past_spike_1(double past_SPIKE_1)
+{
+	past_spike_1 = past_SPIKE_1;
+}
+
+void MuscleModel::set_past_spike_2(double past_SPIKE_2)
+{
+	past_spike_2 = past_SPIKE_2;
+}
+
+double d_force(double T_0, double lce, double vel, double A){
 	const double L0 = 1.0;
 	const double KSE = 136.0;
 	const double KPE = 75.0;
@@ -240,21 +296,40 @@ double MuscleModel::d_force(double T_0, double lce, double vel, double A){
 
 }
 
-double MuscleModel::stepping_model(double delta_t, double spike, double lce, double vel)
+double stepping_model(double delta_t, double spike, double lce, double vel, MuscleModel muscle)
 {
 	double A;
 	double dT;
+	double T;
+	double past_T;
+	double past_spike_1 = muscle.get_past_spike_1();
+	double past_spike_2 = muscle.get_past_spike_2();
+	double past_h_1 = muscle.get_past_h_1();
+	double past_h_2 = muscle.get_past_h_2();
 
-	current_h = active_state(spike, past_spike_1, past_spike_2, past_h_1, past_h_2);
-	past_spike_2 = past_spike_1;
-	past_spike_1 = spike;
-	past_h_2 = past_h_1;
-	past_h_1 = current_h;
 
-	A = current_h * s(1.011);
+	double current_h = active_state(spike, muscle.get_past_spike_1(), muscle.get_past_spike_2(), muscle.get_past_h_1(), muscle.get_past_h_2());
+	muscle.set_past_spike_2(past_spike_1);
+	muscle.set_past_spike_1(spike);
+	muscle.set_past_h_2(past_h_1);
+	muscle.set_past_h_1(current_h);
+
+	A = current_h * s(lce);
 	dT = d_force(past_T, lce, vel, A);
-	T = past_T + dT * delta_t;
-	past_T = T;
+	
 
 	return T;
 }
+
+double MuscleModel::advance_simulation(double delta_t, double excitation, double lce, double vel)
+{
+	dT = algorithm(delta_t, excitation, lce, vel);
+	T = past_T + dT * delta_t;
+	past_T = T;
+	//T = model(delta_t,excitation, lce, vel);
+
+	return T;
+}
+
+
+
